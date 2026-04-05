@@ -60,7 +60,7 @@ def get_header():
  |_____/ \__|_|   \__,_|\___|\__\___/|_|   
     """
     header_text = Text(art, style="bold cyan")
-    version_text = Text(f"v1.2.0 | {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", style="dim white")
+    version_text = Text(f"v1.3.0 | {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", style="dim white")
     
     header_panel = Panel(
         Align.center(header_text + "\n" + version_text),
@@ -152,9 +152,9 @@ class PuterAuthHandler(http.server.SimpleHTTPRequestHandler):
             self.send_response(200)
             self.send_header('Content-type', 'text/html')
             self.end_headers()
-            self.wfile.write(b"<html><body style='font-family:sans-serif;text-align:center;padding-top:50px;'>")
+            self.wfile.write(b"<html><body style='font-family:sans-serif;text-align:center;padding-top:50px;background:#1a1a2e;color:white;'>")
             self.wfile.write(b"<h1>Authentication Successful!</h1>")
-            self.wfile.write(b"<p>You can close this window and return to the console.</p>")
+            self.wfile.write(b"<p>You can close this window and return to the Structor console.</p>")
             self.wfile.write(b"</body></html>")
         else:
             self.send_response(400)
@@ -165,20 +165,24 @@ def run_auth_server(port):
         httpd.handle_request()
 
 def get_puter_token_automated():
-    port = 9999
-    # Start local server in a thread
+    # Use a dynamic port like the official Puter.js
+    with socketserver.TCPServer(("", 0), PuterAuthHandler) as s:
+        port = s.server_address[1]
+    
     server_thread = threading.Thread(target=run_auth_server, args=(port,))
     server_thread.daemon = True
     server_thread.start()
     
-    # Open Puter auth page with redirect to local server
-    auth_url = f"https://puter.com/auth?redirect_uri=http://localhost:{port}"
+    # Correct Puter Auth URL based on Puter.js source
+    # Action 'authme' and 'redirectURL' parameter
+    auth_url = f"https://puter.com/?action=authme&redirectURL={urllib.parse.quote(f'http://localhost:{port}')}"
+    
     console.print(f"[bold yellow]Opening browser for Puter authentication...[/bold yellow]")
     webbrowser.open(auth_url)
     
     console.print("[dim]Waiting for authentication... (Check your browser)[/dim]")
     
-    # Wait for token with timeout
+    # Wait for token with timeout (60s)
     start_time = time.time()
     while PuterAuthHandler.token is None and time.time() - start_time < 60:
         time.sleep(0.5)
@@ -269,9 +273,6 @@ def run_open_interpreter():
             
         # System Message
         interpreter.system_message = "You are Structor. Make nice UI like billion dollar companies. Focus on advanced aesthetics, professional layouts, and seamless user experiences."
-        
-        # Allow local command execution
-        interpreter.auto_run = False  # Set to True if you want it to run without asking
         
         # Start chat
         interpreter.chat()
