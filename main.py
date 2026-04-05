@@ -267,13 +267,14 @@ def run_open_interpreter():
             # LiteLLM uses OPENAI_API_KEY for OpenRouter if provider is not explicitly set in model string
             os.environ["OPENAI_API_KEY"] = api_key
             # Explicitly set the base URL for Open Interpreter
-            interpreter.llm.base_url = "https://openrouter.ai/api/v1"
+            # Open Interpreter uses 'api_base' instead of 'base_url' in some versions
+            interpreter.llm.api_base = "https://openrouter.ai/api/v1"
         elif config.get("AI_PROVIDER") == "Puter":
             token = config.get("PUTER_TOKEN", "")
             os.environ["PUTER_AUTH_TOKEN"] = token
             # Puter uses OpenAI-compatible API at this endpoint
             os.environ["OPENAI_API_KEY"] = token
-            interpreter.llm.base_url = "https://api.puter.com/v1"
+            interpreter.llm.api_base = "https://api.puter.com/v1"
             
         # Also set HEHO key if available
         if config.get("HEHO_API_KEY"):
