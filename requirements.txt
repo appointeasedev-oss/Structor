@@ -1,0 +1,4 @@
+InquirerPy
+requests
+open-interpreter
+python-dotenv
