@@ -20,7 +20,7 @@ from rich.status import Status
 from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.layout import Layout
 from rich.align import Align
-from rich.box import ROUNDED, DOUBLE_EDGE
+from rich.box import ROUNDED, DOUBLE_EDGE, HEAVY
 from InquirerPy import inquirer
 from InquirerPy.base.control import Choice
 from InquirerPy.separator import Separator
@@ -31,6 +31,7 @@ console = Console()
 # Configuration storage
 CONFIG_DIR = Path.home() / ".structor"
 CONFIG_FILE = CONFIG_DIR / "config.json"
+HISTORY_FILE = CONFIG_DIR / "history.json"
 
 def load_config():
     if not CONFIG_FILE.exists():
@@ -47,6 +48,20 @@ def save_config(config):
     with open(CONFIG_FILE, "w") as f:
         json.dump(config, f, indent=4)
 
+def load_history():
+    if not HISTORY_FILE.exists():
+        return []
+    with open(HISTORY_FILE, "r") as f:
+        try:
+            return json.load(f)
+        except json.JSONDecodeError:
+            return []
+
+def save_history(history):
+    CONFIG_DIR.mkdir(exist_ok=True)
+    with open(HISTORY_FILE, "w") as f:
+        json.dump(history, f, indent=4)
+
 def clear_screen():
     os.system('cls' if os.name == 'nt' else 'clear')
 
@@ -60,13 +75,15 @@ def get_header():
  |_____/ \__|_|   \__,_|\___|\__\___/|_|   
     """
     header_text = Text(art, style="bold cyan")
-    version_text = Text(f"v1.4.0 | {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", style="dim white")
+    version_text = Text(f"v1.5.0 | {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", style="dim white")
     
     header_panel = Panel(
         Align.center(header_text + "\n" + version_text),
         box=DOUBLE_EDGE,
         border_style="bright_blue",
-        padding=(1, 2)
+        padding=(1, 2),
+        subtitle="[bold white]The Ultimate AI Architect[/bold white]",
+        subtitle_align="right"
     )
     return header_panel
 
@@ -79,11 +96,11 @@ def show_splash():
         TextColumn("[progress.description]{task.description}"),
         transient=True,
     ) as progress:
-        progress.add_task(description="Initializing Structor Core...", total=None)
+        progress.add_task(description="[cyan]Initializing Structor Core...[/cyan]", total=None)
         time.sleep(0.5)
-        progress.add_task(description="Optimizing UI Modules...", total=None)
+        progress.add_task(description="[magenta]Optimizing UI Modules...[/magenta]", total=None)
         time.sleep(0.3)
-        progress.add_task(description="Establishing Secure AI Bridge...", total=None)
+        progress.add_task(description="[blue]Establishing Secure AI Bridge...[/blue]", total=None)
         time.sleep(0.2)
 
 def show_terms():
@@ -203,7 +220,6 @@ def set_ai_provider():
         with console.status("[bold cyan]Configuring OpenRouter...", spinner="aesthetic"):
             config["AI_PROVIDER"] = "OpenRouter"
             config["OPENROUTER_API_KEY"] = api_key
-            # Use 'openrouter/' prefix for LiteLLM/Open Interpreter
             config["MODEL"] = f"openrouter/{model_name}"
             save_config(config)
             time.sleep(1)
@@ -226,7 +242,6 @@ def set_ai_provider():
             with console.status("[bold blue]Verifying Puter Session...", spinner="earth"):
                 config["AI_PROVIDER"] = "Puter"
                 config["PUTER_TOKEN"] = token
-                # Puter models are passed as 'openai/gpt-3.5-turbo' with Puter's base URL
                 config["MODEL"] = f"openai/{model}"
                 save_config(config)
                 time.sleep(1.5)
@@ -241,10 +256,10 @@ def run_open_interpreter():
         time.sleep(2)
         return
 
-    # Updated display without "Base Prompt" as requested
     console.print(Panel(
         f"[bold white]Target Model:[/bold white] [cyan]{model}[/cyan]\n"
-        f"[bold white]Identity:[/bold white] [green]Structor[/green]",
+        f"[bold white]Identity:[/bold white] [green]Structor[/green]\n"
+        f"[bold white]Memory:[/bold white] [yellow]Persistent Session Enabled[/yellow]",
         title="[bold green]Initializing Open Interpreter[/bold green]",
         border_style="green",
         box=ROUNDED
@@ -256,30 +271,27 @@ def run_open_interpreter():
     try:
         from interpreter import interpreter
         
-        # Configure model - Open Interpreter uses LiteLLM internally
-        # Ensure model string is correctly formatted
-        interpreter.model = model
+        # Reset interpreter state for a clean start but load history
+        interpreter.messages = load_history()
         
-        # Set API keys based on provider
+        # Configure model
+        interpreter.model = model
+        interpreter.auto_run = True
+        
+        # Set API keys and base URLs based on provider
         if config.get("AI_PROVIDER") == "OpenRouter":
             api_key = config.get("OPENROUTER_API_KEY", "")
             os.environ["OPENROUTER_API_KEY"] = api_key
-            # LiteLLM uses OPENAI_API_KEY for OpenRouter if provider is not explicitly set in model string
             os.environ["OPENAI_API_KEY"] = api_key
-            # Explicitly set the base URL for Open Interpreter
-            # Open Interpreter uses 'api_base' instead of 'base_url' in some versions
             interpreter.llm.api_base = "https://openrouter.ai/api/v1"
-            # Set max_tokens to 4000 to avoid credit limit errors on free accounts
-            interpreter.llm.max_tokens = 4000
+            # Set a very safe max_tokens for free accounts
+            interpreter.llm.max_tokens = 1000
         elif config.get("AI_PROVIDER") == "Puter":
             token = config.get("PUTER_TOKEN", "")
-            os.environ["PUTER_AUTH_TOKEN"] = token
-            # Puter uses OpenAI-compatible API at this endpoint
+            # Puter requires the token in the Authorization header as Bearer
             os.environ["OPENAI_API_KEY"] = token
-            # Puter's API base URL is https://api.puter.com/v1
             interpreter.llm.api_base = "https://api.puter.com/v1"
-            # Set max_tokens to 4000 to avoid credit limit errors
-            interpreter.llm.max_tokens = 4000
+            interpreter.llm.max_tokens = 1000
             
         # Also set HEHO key if available
         if config.get("HEHO_API_KEY"):
@@ -287,8 +299,6 @@ def run_open_interpreter():
             
         # System Message
         system_msg = "You are Structor. Make nice UI like billion dollar companies. Focus on advanced aesthetics, professional layouts, and seamless user experiences."
-        
-        # Add HeHo API info to system message if available
         if config.get("HEHO_API_KEY"):
             system_msg += f"\n\nYou have access to the HeHo API. The API key is available in the environment variable 'HEHO_API_KEY'. Use this key to perform tasks in the user's HeHo account if requested. Refer to the HeHo API documentation for endpoints like /api/v1/login, /api/verify-user, /api/aichat, /api/v1/chatbots/manage, and /api/v1/database/manage."
             
@@ -296,6 +306,9 @@ def run_open_interpreter():
         
         # Start chat
         interpreter.chat()
+        
+        # Save history after session
+        save_history(interpreter.messages)
         
     except ImportError:
         console.print("[bold red]Error: 'open-interpreter' is not installed correctly.[/bold red]")
@@ -317,14 +330,16 @@ def main_menu():
         status_table.add_row("[dim]Provider:[/dim]", f"[cyan]{config.get('AI_PROVIDER', 'None')}[/cyan]")
         status_table.add_row("[dim]Model:[/dim]", f"[green]{config.get('MODEL', 'None')}[/green]")
         status_table.add_row("[dim]HeHo Key:[/dim]", "[magenta]●●●●●●[/magenta]" if config.get("HEHO_API_KEY") else "[red]Not Set[/red]")
+        status_table.add_row("[dim]Memory:[/dim]", f"[yellow]{len(load_history())} messages stored[/yellow]")
         
-        console.print(Align.center(Panel(status_table, title="[bold white]System Status[/bold white]", border_style="dim", width=50)))
+        console.print(Align.center(Panel(status_table, title="[bold white]System Status[/bold white]", border_style="dim", width=60, box=HEAVY)))
         console.print("\n")
         
         choice = inquirer.select(
             message="Command Center:",
             choices=[
                 Choice(value="run", name="🚀 Run Structor (Open Interpreter)"),
+                Choice(value="clear_history", name="🧹 Clear Session Memory"),
                 Separator(),
                 Choice(value="heho", name="🔑 Set HeHo API Key"),
                 Choice(value="provider", name="🤖 Set AI Provider"),
@@ -341,6 +356,11 @@ def main_menu():
             set_ai_provider()
         elif choice == "run":
             run_open_interpreter()
+        elif choice == "clear_history":
+            if inquirer.confirm(message="Are you sure you want to clear session memory?").execute():
+                save_history([])
+                console.print("[bold green]✔ Session memory cleared![/bold green]")
+                time.sleep(1)
         elif choice == "exit":
             console.print("[bold blue]Shutting down Structor... Goodbye![/bold blue]")
             break
