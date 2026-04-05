@@ -269,12 +269,17 @@ def run_open_interpreter():
             # Explicitly set the base URL for Open Interpreter
             # Open Interpreter uses 'api_base' instead of 'base_url' in some versions
             interpreter.llm.api_base = "https://openrouter.ai/api/v1"
+            # Set max_tokens to 4000 to avoid credit limit errors on free accounts
+            interpreter.llm.max_tokens = 4000
         elif config.get("AI_PROVIDER") == "Puter":
             token = config.get("PUTER_TOKEN", "")
             os.environ["PUTER_AUTH_TOKEN"] = token
             # Puter uses OpenAI-compatible API at this endpoint
             os.environ["OPENAI_API_KEY"] = token
+            # Puter's API base URL is https://api.puter.com/v1
             interpreter.llm.api_base = "https://api.puter.com/v1"
+            # Set max_tokens to 4000 to avoid credit limit errors
+            interpreter.llm.max_tokens = 4000
             
         # Also set HEHO key if available
         if config.get("HEHO_API_KEY"):
