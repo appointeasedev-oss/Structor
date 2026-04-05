@@ -226,9 +226,8 @@ def set_ai_provider():
             with console.status("[bold blue]Verifying Puter Session...", spinner="earth"):
                 config["AI_PROVIDER"] = "Puter"
                 config["PUTER_TOKEN"] = token
-                # Puter models are often passed via specific provider prefix or directly if using Puter's SDK
-                # For Open Interpreter via LiteLLM, we use 'puter/' prefix
-                config["MODEL"] = f"puter/{model}"
+                # Puter models are passed as 'openai/gpt-3.5-turbo' with Puter's base URL
+                config["MODEL"] = f"openai/{model}"
                 save_config(config)
                 time.sleep(1.5)
             console.print(f"[bold green]✔ Puter session active with {model}[/bold green]")
@@ -266,12 +265,15 @@ def run_open_interpreter():
             api_key = config.get("OPENROUTER_API_KEY", "")
             os.environ["OPENROUTER_API_KEY"] = api_key
             # LiteLLM uses OPENAI_API_KEY for OpenRouter if provider is not explicitly set in model string
-            # But since we use 'openrouter/' prefix, it should use OPENROUTER_API_KEY.
-            # However, many users report needing OPENAI_API_KEY or OPENAI_API_BASE.
             os.environ["OPENAI_API_KEY"] = api_key
-            os.environ["OPENAI_API_BASE"] = "https://openrouter.ai/api/v1"
+            # Explicitly set the base URL for Open Interpreter
+            interpreter.llm.base_url = "https://openrouter.ai/api/v1"
         elif config.get("AI_PROVIDER") == "Puter":
-            os.environ["PUTER_AUTH_TOKEN"] = config.get("PUTER_TOKEN", "")
+            token = config.get("PUTER_TOKEN", "")
+            os.environ["PUTER_AUTH_TOKEN"] = token
+            # Puter uses OpenAI-compatible API at this endpoint
+            os.environ["OPENAI_API_KEY"] = token
+            interpreter.llm.base_url = "https://api.puter.com/v1"
             
         # Also set HEHO key if available
         if config.get("HEHO_API_KEY"):
