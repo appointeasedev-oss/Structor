@@ -60,7 +60,7 @@ def get_header():
  |_____/ \__|_|   \__,_|\___|\__\___/|_|   
     """
     header_text = Text(art, style="bold cyan")
-    version_text = Text(f"v1.1.0 | {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", style="dim white")
+    version_text = Text(f"v1.2.0 | {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", style="dim white")
     
     header_panel = Panel(
         Align.center(header_text + "\n" + version_text),
@@ -80,11 +80,11 @@ def show_splash():
         transient=True,
     ) as progress:
         progress.add_task(description="Initializing Structor Core...", total=None)
-        time.sleep(1.0)
-        progress.add_task(description="Optimizing UI Modules...", total=None)
-        time.sleep(0.8)
-        progress.add_task(description="Establishing Secure AI Bridge...", total=None)
         time.sleep(0.5)
+        progress.add_task(description="Optimizing UI Modules...", total=None)
+        time.sleep(0.3)
+        progress.add_task(description="Establishing Secure AI Bridge...", total=None)
+        time.sleep(0.2)
 
 def show_terms():
     config = load_config()
@@ -172,7 +172,6 @@ def get_puter_token_automated():
     server_thread.start()
     
     # Open Puter auth page with redirect to local server
-    # We use a helper URL that allows token passing back
     auth_url = f"https://puter.com/auth?redirect_uri=http://localhost:{port}"
     console.print(f"[bold yellow]Opening browser for Puter authentication...[/bold yellow]")
     webbrowser.open(auth_url)
@@ -242,7 +241,7 @@ def run_open_interpreter():
 
     console.print(Panel(
         f"[bold white]Target Model:[/bold white] [cyan]{model}[/cyan]\n"
-        f"[bold white]Identity:[/bold white] [green]Structor (Billion Dollar UI Specialist)[/green]\n"
+        f"[bold white]Identity:[/bold white] [green]Structor[/green]\n"
         f"[bold white]Base Prompt:[/bold white] [dim]You are Structor. Make nice UI like billion dollar companies...[/dim]",
         title="[bold green]Initializing Open Interpreter[/bold green]",
         border_style="green",
@@ -250,23 +249,40 @@ def run_open_interpreter():
     ))
     
     with console.status("[bold green]Booting Interpreter Environment...", spinner="dots"):
-        time.sleep(2)
+        time.sleep(1)
     
     try:
-        import interpreter
+        from interpreter import interpreter
+        
+        # Configure model
         interpreter.model = model
-        if "OPENROUTER_API_KEY" in config:
-            os.environ["OPENROUTER_API_KEY"] = config["OPENROUTER_API_KEY"]
-        if "PUTER_TOKEN" in config:
-            os.environ["PUTER_AUTH_TOKEN"] = config["PUTER_TOKEN"]
+        
+        # Set API keys based on provider
+        if config.get("AI_PROVIDER") == "OpenRouter":
+            os.environ["OPENROUTER_API_KEY"] = config.get("OPENROUTER_API_KEY", "")
+        elif config.get("AI_PROVIDER") == "Puter":
+            os.environ["PUTER_AUTH_TOKEN"] = config.get("PUTER_TOKEN", "")
             
+        # Also set HEHO key if available
+        if config.get("HEHO_API_KEY"):
+            os.environ["HEHO_API_KEY"] = config.get("HEHO_API_KEY")
+            
+        # System Message
         interpreter.system_message = "You are Structor. Make nice UI like billion dollar companies. Focus on advanced aesthetics, professional layouts, and seamless user experiences."
+        
+        # Allow local command execution
+        interpreter.auto_run = False  # Set to True if you want it to run without asking
+        
+        # Start chat
         interpreter.chat()
+        
+    except ImportError:
+        console.print("[bold red]Error: 'open-interpreter' is not installed correctly.[/bold red]")
+        console.print("[yellow]Please run: pip install open-interpreter[/yellow]")
+        time.sleep(3)
     except Exception as e:
-        console.print(f"\n[bold yellow]Session Simulation (Development Mode)[/bold yellow]")
-        console.print(f"[dim]Model: {model}[/dim]")
-        console.print("\n[bold cyan]Structor >[/bold cyan] Hello. I am ready to build your billion-dollar UI. What are we creating today?")
-        input("\n[Press Enter to return to menu]")
+        console.print(f"[bold red]An error occurred: {str(e)}[/bold red]")
+        time.sleep(3)
 
 def main_menu():
     show_terms()
