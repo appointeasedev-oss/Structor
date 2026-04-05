@@ -60,7 +60,7 @@ def get_header():
  |_____/ \__|_|   \__,_|\___|\__\___/|_|   
     """
     header_text = Text(art, style="bold cyan")
-    version_text = Text(f"v1.3.0 | {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", style="dim white")
+    version_text = Text(f"v1.4.0 | {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", style="dim white")
     
     header_panel = Panel(
         Align.center(header_text + "\n" + version_text),
@@ -165,7 +165,6 @@ def run_auth_server(port):
         httpd.handle_request()
 
 def get_puter_token_automated():
-    # Use a dynamic port like the official Puter.js
     with socketserver.TCPServer(("", 0), PuterAuthHandler) as s:
         port = s.server_address[1]
     
@@ -173,8 +172,6 @@ def get_puter_token_automated():
     server_thread.daemon = True
     server_thread.start()
     
-    # Correct Puter Auth URL based on Puter.js source
-    # Action 'authme' and 'redirectURL' parameter
     auth_url = f"https://puter.com/?action=authme&redirectURL={urllib.parse.quote(f'http://localhost:{port}')}"
     
     console.print(f"[bold yellow]Opening browser for Puter authentication...[/bold yellow]")
@@ -182,7 +179,6 @@ def get_puter_token_automated():
     
     console.print("[dim]Waiting for authentication... (Check your browser)[/dim]")
     
-    # Wait for token with timeout (60s)
     start_time = time.time()
     while PuterAuthHandler.token is None and time.time() - start_time < 60:
         time.sleep(0.5)
@@ -207,6 +203,7 @@ def set_ai_provider():
         with console.status("[bold cyan]Configuring OpenRouter...", spinner="aesthetic"):
             config["AI_PROVIDER"] = "OpenRouter"
             config["OPENROUTER_API_KEY"] = api_key
+            # Use 'openrouter/' prefix for LiteLLM/Open Interpreter
             config["MODEL"] = f"openrouter/{model_name}"
             save_config(config)
             time.sleep(1)
@@ -229,6 +226,8 @@ def set_ai_provider():
             with console.status("[bold blue]Verifying Puter Session...", spinner="earth"):
                 config["AI_PROVIDER"] = "Puter"
                 config["PUTER_TOKEN"] = token
+                # Puter models are often passed via specific provider prefix or directly if using Puter's SDK
+                # For Open Interpreter via LiteLLM, we use 'puter/' prefix
                 config["MODEL"] = f"puter/{model}"
                 save_config(config)
                 time.sleep(1.5)
@@ -243,10 +242,10 @@ def run_open_interpreter():
         time.sleep(2)
         return
 
+    # Updated display without "Base Prompt" as requested
     console.print(Panel(
         f"[bold white]Target Model:[/bold white] [cyan]{model}[/cyan]\n"
-        f"[bold white]Identity:[/bold white] [green]Structor[/green]\n"
-        f"[bold white]Base Prompt:[/bold white] [dim]You are Structor. Make nice UI like billion dollar companies...[/dim]",
+        f"[bold white]Identity:[/bold white] [green]Structor[/green]",
         title="[bold green]Initializing Open Interpreter[/bold green]",
         border_style="green",
         box=ROUNDED
@@ -258,12 +257,15 @@ def run_open_interpreter():
     try:
         from interpreter import interpreter
         
-        # Configure model
+        # Configure model - Open Interpreter uses LiteLLM internally
+        # Ensure model string is correctly formatted
         interpreter.model = model
         
         # Set API keys based on provider
         if config.get("AI_PROVIDER") == "OpenRouter":
             os.environ["OPENROUTER_API_KEY"] = config.get("OPENROUTER_API_KEY", "")
+            # Sometimes LiteLLM needs OPENAI_API_BASE for OpenRouter
+            os.environ["OPENAI_API_BASE"] = "https://openrouter.ai/api/v1"
         elif config.get("AI_PROVIDER") == "Puter":
             os.environ["PUTER_AUTH_TOKEN"] = config.get("PUTER_TOKEN", "")
             
