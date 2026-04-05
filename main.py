@@ -263,8 +263,12 @@ def run_open_interpreter():
         
         # Set API keys based on provider
         if config.get("AI_PROVIDER") == "OpenRouter":
-            os.environ["OPENROUTER_API_KEY"] = config.get("OPENROUTER_API_KEY", "")
-            # Sometimes LiteLLM needs OPENAI_API_BASE for OpenRouter
+            api_key = config.get("OPENROUTER_API_KEY", "")
+            os.environ["OPENROUTER_API_KEY"] = api_key
+            # LiteLLM uses OPENAI_API_KEY for OpenRouter if provider is not explicitly set in model string
+            # But since we use 'openrouter/' prefix, it should use OPENROUTER_API_KEY.
+            # However, many users report needing OPENAI_API_KEY or OPENAI_API_BASE.
+            os.environ["OPENAI_API_KEY"] = api_key
             os.environ["OPENAI_API_BASE"] = "https://openrouter.ai/api/v1"
         elif config.get("AI_PROVIDER") == "Puter":
             os.environ["PUTER_AUTH_TOKEN"] = config.get("PUTER_TOKEN", "")
@@ -274,7 +278,13 @@ def run_open_interpreter():
             os.environ["HEHO_API_KEY"] = config.get("HEHO_API_KEY")
             
         # System Message
-        interpreter.system_message = "You are Structor. Make nice UI like billion dollar companies. Focus on advanced aesthetics, professional layouts, and seamless user experiences."
+        system_msg = "You are Structor. Make nice UI like billion dollar companies. Focus on advanced aesthetics, professional layouts, and seamless user experiences."
+        
+        # Add HeHo API info to system message if available
+        if config.get("HEHO_API_KEY"):
+            system_msg += f"\n\nYou have access to the HeHo API. The API key is available in the environment variable 'HEHO_API_KEY'. Use this key to perform tasks in the user's HeHo account if requested. Refer to the HeHo API documentation for endpoints like /api/v1/login, /api/verify-user, /api/aichat, /api/v1/chatbots/manage, and /api/v1/database/manage."
+            
+        interpreter.system_message = system_msg
         
         # Start chat
         interpreter.chat()
